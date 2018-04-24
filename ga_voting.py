@@ -7,12 +7,15 @@
 # of those pop-centers ... i.e. we want to find an assignment that
 # makes all voting districts as close to equal as possible
 #
-
 # this work is based on:
 # Genetic Algorithms & Optimal Solutions
 # Solving for the best congressional redistricting solution in Texas
 # By Michael Larson, Dr. Dobb's Journal
 # Mar 01, 2004 URL:http://www.ddj.com/dept/architect/184405617
+#
+# this code is:
+# Copyright (C) 2018, John Pormann, Duke University Libraries
+#
 
 import os
 import random

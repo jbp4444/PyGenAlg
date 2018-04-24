@@ -1,6 +1,8 @@
 #
 # a "basic" genetic algorithm class
 #
+# Copyright (C) 2018, John Pormann, Duke University Libraries
+#
 
 import math
 import random

@@ -2,6 +2,8 @@
 # genetic algorithm to place circular sprinklers into a field
 # to provide the best coverage of that field
 #
+# Copyright (C) 2018, John Pormann, Duke University Libraries
+#
 
 import os
 import random

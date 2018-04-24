@@ -2,6 +2,9 @@
 # genetic algorithm to make change for a given target value;
 # attempts to minize the difference in amounts as well as
 # the number of coins given
+#
+# Copyright (C) 2018, John Pormann, Duke University Libraries
+#
 
 import os
 import random

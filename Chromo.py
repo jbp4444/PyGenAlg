@@ -3,6 +3,8 @@
 #
 # you MUST override calcFitness()
 #
+# Copyright (C) 2018, John Pormann, Duke University Libraries
+#
 
 import random
 from copy import deepcopy
