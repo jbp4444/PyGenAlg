@@ -8,10 +8,8 @@
 
 import os
 import random
-import pickle
 
-from Chromo import BaseChromo
-from GeneticAlg import GenAlg
+from PyGenAlg import GenAlg, BaseChromo
 
 # # # # # # # # # # # # # # # # # # # #
 ## # # # # # # # # # # # # # # # # # #
@@ -50,25 +48,25 @@ class MyChromo(BaseChromo):
 
 def main():
 
-	#
-	# if a pickle-file exists, we load it
-	if( os.path.isfile('ga_coins.pkl') ):
-		with open('ga_coins.pkl','r') as fp:
-			ga = pickle.load( fp )
-		print( 'Read init data from file')
+	ga = GenAlg( size=20,
+		elitismPct   = 0.10,
+		crossoverPct = 0.30,
+		mutationPct  = 0.60,
+		parentsPct   = 0.50,
+		chromoClass  = MyChromo,
+		minOrMax     = 'max',
+		showBest     = 0
+	)
 
+	#
+	# if a data-file exists, we load it
+	if( os.path.isfile('ga_coins.dat') ):
+		ga.loadPopulation( 'ga_coins.dat' )
+		print( 'Read init data from file')
 	else:
 		# otherwise, init the gen-alg library from scratch
-		ga = GenAlg( size=20,
-			elitismPct   = 0.10,
-			crossoverPct = 0.30,
-			mutationPct  = 0.60,
-			parentsPct   = 0.50,
-			chromoClass  = MyChromo,
-			minOrMax     = 'max',
-			showBest     = 0
-		)
 		ga.initPopulation()
+		print( 'Created random init data' )
 
 	#
 	# Run it !!
@@ -77,8 +75,8 @@ def main():
 		ga.evolve( 10 )
 
 		# give some running feedback on our progress
-		print( str(i) + " best chromo:" )
-		for i in range(1):
+		print( 'iter '+str(i) + ", best chromo:" )
+		for i in range(10):
 			print( ga.population[i] )
 
 	#
@@ -87,12 +85,12 @@ def main():
 	for i in range(10):
 		print( ga.population[i] )
 
+
 	#
 	# we'll always save the pickle-file, just delete it
 	# if you want to start over from scratch
-	with open('ga_coins.pkl','w') as fp:
-		pickle.dump( ga, fp )
-	print('Final data stored to file (rm ga_coins.pkl to start fresh)')
+	ga.savePopulation( 'ga_coins.dat' )
+	print('Final data stored to file (rm ga_coins.dat to start fresh)')
 
 if __name__ == '__main__':
 	main()

@@ -16,19 +16,24 @@ class GenAlg:
 
 		# specify kwargs by integer counts ...
 		self.elitism       = kwargs.get( 'elitism', None )
+		self.callback1     = kwargs.get( 'callback1', None )
 		self.crossover     = kwargs.get( 'crossover', None )
 		self.mutation      = kwargs.get( 'mutation', None )
+		self.migration     = kwargs.get( 'migration', None )
 		self.parents       = kwargs.get( 'parents', None )
 		# or specify by percent of population (default)
 		self.elitismPct    = kwargs.get( 'elitismPct', 0.10 )
 		self.crossoverPct  = kwargs.get( 'crossoverPct', 0.30 )
 		self.mutationPct   = kwargs.get( 'mutationPct', 0.60 )
+		self.migrationPct  = kwargs.get( 'migrationPct', 0.0 )
 		self.parentsPct    = kwargs.get( 'parentsPct', 0.50 )
 		# other kwargs ...
 		self.chromoClass   = kwargs.get( 'chromoClass', None )
 		self.population_sz = kwargs.get( 'size', 10 )
 		self.minOrMax      = kwargs.get( 'minOrMax', 'max' )
 		self.showBest      = kwargs.get( 'showBest', 0 )
+		# hooks for migration
+		self.migrationFcn  = kwargs.get( 'migrationFcn', None )
 
 		# calculated/to-be-calculated values
 		self.population = []
@@ -40,12 +45,17 @@ class GenAlg:
 		if( (self.mutation == None) and (self.mutationPct != None) ):
 			self.mutation = int( self.population_sz * self.mutationPct + 0.5 )
 
-		if( (self.elitism != None) and (self.crossover != None) ):
-			self.mutation = self.population_sz - self.elitism - self.crossover
-		elif( (self.elitism != None) and (self.mutation != None) ):
-			self.crossover = self.population_sz - self.elitism - self.mutation
-		else:
-			self.elitism = self.population_sz - self.crossover - self.mutation
+		if( (self.migration == None) and (self.migrationPct != None) ):
+			self.migration = int( self.population_sz * self.migrationPct + 0.5 )
+
+		# TODO: make sure pop_sz = elitism+crossover+mutation+callback1/2/3
+
+		#if( (self.elitism != None) and (self.crossover != None) ):
+		#	self.mutation = self.population_sz - self.elitism - self.crossover
+		#elif( (self.elitism != None) and (self.mutation != None) ):
+		#	self.crossover = self.population_sz - self.elitism - self.mutation
+		#else:
+		#	self.elitism = self.population_sz - self.crossover - self.mutation
 
 		if( (self.parents == None) and (self.parentsPct != None) ):
 			self.parents = int( self.population_sz * self.parentsPct + 0.5 )
@@ -70,8 +80,7 @@ class GenAlg:
 		else:
 			self.cross_step = 1
 
-
-		# TODO: double-check that elitism+crossover+mutation == population_sz
+		# TODO: check that callback functions are given, if needed
 
 		#print( 'genalg:', self.population_sz,'=',self.elitism,self.crossover,self.mutation )
 
@@ -81,6 +90,40 @@ class GenAlg:
 		for i in range(self.population_sz):
 			pop.append( chrClass() )
 		self.population = pop
+
+	# for parallel runs, use start/finish to read just the pieces of data
+	# each PE needs for it's local population (file==global population)
+	def loadPopulation( self, filename, start=0, finish=None ):
+		# TODO: refactor to do this the right way
+		pop = []
+		if( finish is None ):
+			finish = self.population_sz
+		# how big is each chromosome?
+		chrClass = self.chromoClass
+		# read the file, one chromo at a time
+		with open(filename,'r') as fp:
+			c = 0
+			# skip over un-needed values
+			while( c < start ):
+				data = fp.readline()
+				c = c + 1
+			while( c < finish ):
+				line = fp.readline()
+				p = chrClass()
+				p.unpackData( line )
+				pop.append( p )
+				c = c + 1
+		self.population = pop
+
+	# for parallel runs, first PE sets mode='w' to create the file
+	# then other PEs set mode='a' to just append to the end of file
+	# : TODO: may need to channel all I/O through one task to ensure
+	#   that the file point (end-of-file) is accurate
+	def savePopulation( self, filename, mode='w' ):
+		with open(filename,mode) as fp:
+			for p in self.population:
+				txt = p.packData()
+				fp.write( txt + '\n' )
 
 	def calcFitness(self):
 		pop = self.population
@@ -145,8 +188,8 @@ class GenAlg:
 			for i in range(0,self.crossover,self.cross_step):
 				# simple selection from all "parents"
 				#   parents == top X% of population with the best fitness
-				idx1 = random.randint(1,self.parents-1)
-				idx2 = random.randint(1,self.parents-1)
+				idx1 = random.randint(0,self.parents-1)
+				idx2 = random.randint(0,self.parents-1)
 				#print( "c-idx=",idx1,idx2 )
 				mother = pop1[ idx1 ]
 				father = pop1[ idx2 ]
@@ -160,8 +203,8 @@ class GenAlg:
 			# last group are computed from mutation
 			for i in range(self.mutation):
 				# crossover and mutation
-				idx1 = random.randint(1,self.parents-1)
-				idx2 = random.randint(1,self.parents-1)
+				idx1 = random.randint(0,self.parents-1)
+				idx2 = random.randint(0,self.parents-1)
 				#print( "c-idx=",idx1,idx2 )
 				mother = pop1[ idx1 ]
 				father = pop1[ idx2 ]
@@ -176,6 +219,19 @@ class GenAlg:
 					newchr = mother.crossover( father )
 					newchr = newchr.mutate()
 					pop2.append( newchr )
+
+			# if present, do migration (callback to user-code)
+			if( self.migration > 0 ):
+				# TODO: only do migration every N iterations
+				migrants = []
+				for i in range(0,self.migration):
+					# simple selection from all "parents"
+					#   parents == top X% of population with the best fitness
+					# TODO: migrant should be removed from population (if present)
+					idx1 = random.randint(0,self.parents-1)
+					migrants.append( pop1[ idx1 ] )
+				add_pop = self.migrationFcn( migrants )
+				pop2.extend( add_pop )
 
 			# TODO: we should look at pop2 fitnesses and
 			#   only keep those better than in pop1

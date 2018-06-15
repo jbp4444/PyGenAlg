@@ -19,13 +19,11 @@
 
 import os
 import random
-import pickle
 import csv
 
 from PIL import Image, ImageDraw
 
-from Chromo import BaseChromo
-from GeneticAlg import GenAlg
+from PyGenAlg import GenAlg, BaseChromo
 
 # # # # # # # # # # # # # # # # # # # #
 ## # # # # # # # # # # # # # # # # # #
@@ -194,25 +192,26 @@ class MyChromo(BaseChromo):
 # # # # # # # # # # # # # # # # # # # #
 
 def main():
+
+	ga = GenAlg( size=200,
+		elitismPct   = 0.10,
+		crossoverPct = 0.30,
+		mutationPct  = 0.60,
+		parentsPct   = 0.50,
+		chromoClass  = MyChromo,
+		minOrMax     = 'min',
+		showBest     = 0
+	)
+
 	#
 	# if a pickle-file exists, we load it
-	if( os.path.isfile('ga_voting.pkl') ):
-		with open('ga_voting.pkl','r') as fp:
-			ga = pickle.load( fp )
+	if( os.path.isfile('ga_voting.dat') ):
+		ga.loadPopulation( 'ga_voting.dat' )
 		print( 'Read init data from file')
-
 	else:
 		# otherwise, init the gen-alg library from scratch
-		ga = GenAlg( size=200,
-			elitismPct   = 0.10,
-			crossoverPct = 0.30,
-			mutationPct  = 0.60,
-			parentsPct   = 0.50,
-			chromoClass  = MyChromo,
-			minOrMax     = 'min',
-			showBest     = 0
-		)
 		ga.initPopulation()
+		print( 'Created random init data' )
 
 	#
 	# Run it !!
@@ -235,9 +234,8 @@ def main():
 	#
 	# we'll always save the pickle-file, just delete it
 	# if you want to start over from scratch
-	with open('ga_voting.pkl','w') as fp:
-		pickle.dump( ga, fp )
-	print('Final data stored to file (rm ga_voting.pkl to start fresh)')
+	ga.savePopulation( 'ga_voting.dat' )
+	print('Final data stored to file (rm ga_voting.dat to start fresh)')
 
 if __name__ == '__main__':
 	main()

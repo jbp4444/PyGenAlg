@@ -7,12 +7,10 @@
 
 import os
 import random
-import pickle
 
 from PIL import Image, ImageDraw
 
-from Chromo import BaseChromo
-from GeneticAlg import GenAlg
+from PyGenAlg import GenAlg, BaseChromo
 
 # # # # # # # # # # # # # # # # # # # #
 ## # # # # # # # # # # # # # # # # # #
@@ -135,24 +133,23 @@ class MyChromo(BaseChromo):
 
 def main():
 
+	ga = GenAlg( size=20,
+		elitismPct   = 0.10,
+		crossoverPct = 0.30,
+		mutationPct  = 0.60,
+		parentsPct   = 0.50,
+		chromoClass  = MyChromo,
+		minOrMax     = 'max',
+		showBest     = 0
+	)
+
 	#
 	# if a pickle-file exists, we load it
-	if( os.path.isfile('ga_sprinkler.pkl') ):
-		with open('ga_sprinkler.pkl','r') as fp:
-			ga = pickle.load( fp )
+	if( os.path.isfile('ga_sprinkler.dat') ):
+		ga.loadPopulation( 'ga_sprinkler.dat' )
 		print( 'Read init data from file')
-
 	else:
 		# otherwise, init the gen-alg library from scratch
-		ga = GenAlg( size=20,
-			elitismPct   = 0.10,
-			crossoverPct = 0.30,
-			mutationPct  = 0.60,
-			parentsPct   = 0.50,
-			chromoClass  = MyChromo,
-			minOrMax     = 'max',
-			showBest     = 0
-		)
 		ga.initPopulation()
 		print( 'Created random init data' )
 
@@ -178,9 +175,8 @@ def main():
 	#
 	# we'll always save the pickle-file, just delete it
 	# if you want to start over from scratch
-	with open('ga_sprinkler.pkl','w') as fp:
-		pickle.dump( ga, fp )
-	print('Final data stored to file (rm ga_sprinkler.pkl to start fresh)')
+	ga.savePopulation( 'ga_sprinkler.dat' )
+	print('Final data stored to file (rm ga_sprinkler.dat to start fresh)')
 
 if __name__ == '__main__':
 	main()
