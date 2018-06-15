@@ -35,5 +35,5 @@ A pair of basic genetic algorithm classes to play around with.
     * uses US government data on population in each zipcode in NC
     * chromosomes are (lat,lon) coords for the centroid of a voting district; each zipcode is matched to the closest centroid, and that determines the shape of the district
     * fitness function is just the difference in population between the most- and least-populous voting districts
-  * all examples use pickle to save one run's data to prime the next run; i.e. running the code several times should produce better results
-    * just delete the ga_*.pkl file to start over from scratch
+  * all examples read/write to data files to save one run's data to prime the next run; i.e. running the code several times should produce better results
+    * just delete the ga_*.dat file to start over from scratch
