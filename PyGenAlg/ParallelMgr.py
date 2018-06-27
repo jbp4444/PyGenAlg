@@ -27,16 +27,21 @@ class ParallelMgr():
         # separate lists for direct PE-to-PE communication
         self.msgLists = [ self.commMgr.list() for i in range(self.num_pes) ]
 
-        print( 'parStuff init' )
+        print( 'ParallelMgr init' )
         sys.stdout.flush()
 
     def runWorkers( self, workerModule ):
-		self.peList = [ workerModule(i,self) for i in range(self.num_pes) ]
-		for pe in self.peList:
-			pe.start()
+        self.peList = [ workerModule(i,self) for i in range(self.num_pes) ]
+        for pe in self.peList:
+            print( 'starting worker '+str(pe) )
+            pe.start()
         # TODO: check for errors
 
     def finalize( self ):
+        print( 'waiting for workers to finish' )
+        for pe in self.peList:
+            print( 'worker '+str(pe)+' is_alive='+str(pe.is_alive()) )
+            
         for pe in self.peList:
             pe.join()
         # TODO: check for errors

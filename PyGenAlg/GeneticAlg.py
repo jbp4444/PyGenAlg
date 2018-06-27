@@ -32,8 +32,12 @@ class GenAlg:
 		self.population_sz = kwargs.get( 'size', 10 )
 		self.minOrMax      = kwargs.get( 'minOrMax', 'max' )
 		self.showBest      = kwargs.get( 'showBest', 0 )
+		self.useRoulette   = kwargs.get( 'useRoulette', False )
+		self.replaceDupes  = kwargs.get( 'replaceDupes', False )
 		# hooks for migration
-		self.migrationFcn  = kwargs.get( 'migrationFcn', None )
+		self.migrationFcn     = kwargs.get( 'migrationFcn', None )
+		self.migrationSendFcn = kwargs.get( 'migrationSendFcn', None )
+		self.migrationRecvFcn = kwargs.get( 'migrationRecvFcn', None )
 
 		# calculated/to-be-calculated values
 		self.population = []
@@ -83,6 +87,7 @@ class GenAlg:
 		# TODO: check that callback functions are given, if needed
 
 		#print( 'genalg:', self.population_sz,'=',self.elitism,self.crossover,self.mutation )
+		self.is_sorted = False
 
 	def initPopulation(self):
 		pop = []
@@ -90,6 +95,7 @@ class GenAlg:
 		for i in range(self.population_sz):
 			pop.append( chrClass() )
 		self.population = pop
+		self.is_sorted = False
 
 	# for parallel runs, use start/finish to read just the pieces of data
 	# each PE needs for it's local population (file==global population)
@@ -114,6 +120,7 @@ class GenAlg:
 				pop.append( p )
 				c = c + 1
 		self.population = pop
+		self.is_sorted = False    # we can't know if it's sorted
 
 	# for parallel runs, first PE sets mode='w' to create the file
 	# then other PEs set mode='a' to just append to the end of file
@@ -127,9 +134,24 @@ class GenAlg:
 
 	def calcFitness(self):
 		pop = self.population
+		# sum of fitness values needed for roulette wheel selection
+		sum_fitness = 0.0
+		if( pop[0].fitness == None ):
+				pop[0].fitness = pop[0].calcFitness()
+		min_fitness = pop[0].fitness 
+		max_fitness = pop[0].fitness
 		for i in range(self.population_sz):
 			if( pop[i].fitness == None ):
 				pop[i].fitness = pop[i].calcFitness()
+			sum_fitness = sum_fitness + pop[i].fitness
+			if( pop[i].fitness > max_fitness ):
+				max_fitness = pop[i].fitness
+			if( pop[i].fitness < min_fitness ):
+				min_fitness = pop[i].fitness
+		self.sum_fitness = sum_fitness
+		self.min_fitness = min_fitness
+		self.max_fitness = max_fitness
+		self.is_sorted = False
 
 	def bestChromo(self):
 		# assume idx=1 is the min/max
@@ -168,6 +190,91 @@ class GenAlg:
 				t = pop[i]
 				pop[i] = pop[idx]
 				pop[idx] = t
+		self.is_sorted = True
+
+	def checkDuplicates( self ):
+		if( not self.is_sorted ):
+			self.sortPopulation()
+		ndup = 0
+		pop = self.population
+		for i in range(1,self.population_sz):
+			d1 = pop[i-1].data
+			d2 = pop[i].data
+			values_equal = True
+			for j in range(len(d1)):
+				if( d1[j] != d2[j] ):
+					values_equal = False
+					break
+			if( values_equal ):
+				#print( 'dupe found: '+str(i-1)+' '+str(i) )
+				ndup = ndup + 1
+		#print( 'found '+str(ndup)+' dupes' )
+
+	def replaceDuplicates( self ):
+		# this modifies self.population in-place
+		if( not self.is_sorted ):
+			self.sortPopulation()
+		ndup = 0
+		pop = self.population
+		chrClass = self.chromoClass
+		for i in range(1,self.population_sz):
+			d1 = pop[i-1].data
+			d2 = pop[i].data
+			values_equal = True
+			for j in range(len(d1)):
+				if( d1[j] != d2[j] ):
+					values_equal = False
+					break
+			if( values_equal ):
+				#print( 'dupe found: '+str(i-1)+' '+str(i) )
+				ndup = ndup + 1
+				# replace i-1 copy so that i+1 can match i
+				# and doctor up the sum_fitness value so that
+				# roulette wheel selection still works
+				newguy = chrClass()
+				self.sum_fitness = self.sum_fitness - pop[i-1].fitness
+				pop[i-1] = newguy
+				pop[i-1].fitness = pop[i-1].calcFitness()
+				self.sum_fitness = self.sum_fitness + pop[i-1].fitness
+		#print( 'found '+str(ndup)+' dupes' )
+
+	def randomRouletteWheel( self ):
+		rtn = -1
+		if( self.minOrMax == 'max' ):
+			if( self.sum_fitness > 0 ):
+				# maximize fitness, and fitness values are positive
+				value = random.random() * self.sum_fitness
+				offset = 0
+			else:
+				# maximize fitness, and fitness values are negative
+				value = random.random() * abs(self.sum_fitness)
+				# : make all values "look" positive
+				offset = self.min_fitness
+			# loop over population
+			for i in range(self.population_sz):
+				value = value - (self.population[i].fitness + offset)
+				if( value < 0 ):
+					rtn = i
+					break
+		else:
+			# TODO: these are not working yet
+			if( self.sum_fitness > 0 ):
+				# minimize fitness, and fitness values are positive
+				value = random.random() * self.sum_fitness * (-1)
+				offset = self.max_fitness
+			else:
+				# minimize fitness, and fitness values are negative
+				value = random.random() * self.sum_fitness
+				offset = 0
+			for i in range(self.population_sz):
+				value = value - (self.population[i].fitness + offset)
+				if( value > 0 ):
+					rtn = i
+					break
+		# locate the random value based on the weights
+		if( rtn < 0 ):
+			rtn = self.population_sz - 1
+		return rtn
 
 	def evolve( self, iters ):
 		psz  = self.population_sz
@@ -180,17 +287,40 @@ class GenAlg:
 			pop1 = self.population
 			pop2 = []
 
+			if( self.replaceDupes ):
+				# this modifies population (pop1) in-place
+				self.replaceDuplicates()
+
+			# if present, do migration (callback to user-code)
+			# NOTE: this func does not remove the migrant from the
+			#       current population, it makes a copy to send to
+			#       the remote population
+			if( (self.migration > 0) and (self.migrationSendFcn!=None) ):
+				# TODO: only do migration every N iterations
+				migrants = []
+				for i in range(0,self.migration):
+					# simple selection from all "parents"
+					#   parents == top X% of population with the best fitness
+					# TODO: migrant should be removed from population (if present)
+					idx1 = random.randint(0,self.parents-1)
+					migrants.append( pop1[ idx1 ] )
+				add_pop = self.migrationSendFcn( migrants )
+
 			# first/best N chromos are kept (elitism)
 			for i in range(self.elitism):
 				pop2.append( pop1[i] )
 
 			# next group are computed from crossover
 			for i in range(0,self.crossover,self.cross_step):
-				# simple selection from all "parents"
-				#   parents == top X% of population with the best fitness
-				idx1 = random.randint(0,self.parents-1)
-				idx2 = random.randint(0,self.parents-1)
-				#print( "c-idx=",idx1,idx2 )
+				if( self.useRoulette ):
+					# TODO: roulette wheel selection
+					idx1 = self.randomRouletteWheel()
+					idx2 = self.randomRouletteWheel()
+				else:
+					# simple selection from all "parents"
+					# potential parents == top X% of population with the best fitness
+					idx1 = random.randint(0,self.parents-1)
+					idx2 = random.randint(0,self.parents-1)
 				mother = pop1[ idx1 ]
 				father = pop1[ idx2 ]
 				if( self.cross_step == 2 ):
@@ -221,16 +351,23 @@ class GenAlg:
 					pop2.append( newchr )
 
 			# if present, do migration (callback to user-code)
+			# NOTE: this func does not remove the migrant from the
+			#       current population, it makes a copy to send to
+			#       the remote population
 			if( self.migration > 0 ):
 				# TODO: only do migration every N iterations
-				migrants = []
-				for i in range(0,self.migration):
-					# simple selection from all "parents"
-					#   parents == top X% of population with the best fitness
-					# TODO: migrant should be removed from population (if present)
-					idx1 = random.randint(0,self.parents-1)
-					migrants.append( pop1[ idx1 ] )
-				add_pop = self.migrationFcn( migrants )
+				add_pop = []
+				if( self.migrationRecvFcn != None ):
+					add_pop = self.migrationRecvFcn()
+				else:
+					migrants = []
+					for i in range(0,self.migration):
+						# simple selection from all "parents"
+						#   parents == top X% of population with the best fitness
+						# TODO: migrant should be removed from population (if present)
+						idx1 = random.randint(0,self.parents-1)
+						migrants.append( pop1[ idx1 ] )
+					add_pop = self.migrationFcn( migrants )
 				pop2.extend( add_pop )
 
 			# TODO: we should look at pop2 fitnesses and

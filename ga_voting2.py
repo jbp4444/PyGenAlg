@@ -20,7 +20,6 @@
 import os
 import random
 import csv
-import time
 
 from PIL import Image, ImageDraw
 
@@ -60,7 +59,7 @@ dataRanges = [
 # : we only use wtd centroid longitude and latitude and Total Pop
 #   == columns 4,5,6
 nc_data = []
-with open('nc_dist12/nc_data.zip.txt') as fp:
+with open('nc_dist12/pop_per_zip') as fp:
 	readCSV = csv.reader( fp, delimiter=',' )
 	# skip 2 header lines
 	next( readCSV, None )
@@ -194,7 +193,7 @@ class MyChromo(BaseChromo):
 
 def main():
 
-	ga = GenAlg( size=100,
+	ga = GenAlg( size=200,
 		elitismPct   = 0.10,
 		crossoverPct = 0.30,
 		mutationPct  = 0.60,
@@ -206,7 +205,7 @@ def main():
 
 	#
 	# if a pickle-file exists, we load it
-	if( False and os.path.isfile('ga_voting.dat') ):
+	if( os.path.isfile('ga_voting.dat') ):
 		ga.loadPopulation( 'ga_voting.dat' )
 		print( 'Read init data from file')
 	else:
@@ -217,22 +216,18 @@ def main():
 	#
 	# Run it !!
 	# : we'll just do 10 epochs of 10 steps each
-	t0 = time.time()
 	for i in range(10):
 		ga.evolve( 10 )
 
 		# give some running feedback on our progress
-		#print( str(i) + " best chromo:" )
-		#for i in range(1):
-		#	print( ga.population[i] )
-
-	t1 = time.time()
-	print( 'time = ' + str(t1-t0) + ' sec' )
+		print( str(i) + " best chromo:" )
+		for i in range(1):
+			print( ga.population[i] )
 
 	#
 	# all done ... output final results
 	print( "\nfinal best chromos:" )
-	for i in range(1):
+	for i in range(10):
 		print( ga.population[i] )
 	ga.population[0].drawImage()
 

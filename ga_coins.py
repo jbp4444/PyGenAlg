@@ -55,7 +55,9 @@ def main():
 		parentsPct   = 0.50,
 		chromoClass  = MyChromo,
 		minOrMax     = 'max',
-		showBest     = 0
+		showBest     = 0,
+		replaceDupes = True,
+		useRoulette  = True
 	)
 
 	#

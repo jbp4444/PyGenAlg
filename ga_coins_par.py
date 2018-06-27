@@ -36,7 +36,7 @@ class the_code( Process ):
         self.tid = tid
         self.parMgr = parMgr
         self.num_pes = parMgr.num_pes
-        print( 'tid '+str(tid)+' init (out of '+str(self.num_pes)+')' )
+        print( 'TID'+str(tid)+' init (out of '+str(self.num_pes)+')' )
         sys.stdout.flush()
 
     def run(self):
@@ -47,7 +47,7 @@ class the_code( Process ):
         # : e.g. store this worker-tid into parMgr; init per-worker values
         parMgr.tid = tid
 
-        print( 'tid '+str(tid)+' started (out of '+str(num_pes)+')' )
+        print( 'TID'+str(tid)+' started (out of '+str(num_pes)+')' )
         sys.stdout.flush()
 
         # TODO: calculate the splitting across the PEs
