@@ -51,24 +51,24 @@ dataRanges = [
 	(-90.0,-70.0), (32.0,37.0)
 ]
 
-# data fields in zipcode file:
-# "FIPS state","ZIP Census Tabulation Area","State Postal Code",
-#  "zipname","Wtd centroid W longitude, degrees",
-#  "Wtd centroid latitude, degrees","Total Pop, 2000 census",
-#  "state to zcta5 alloc factor"
-# : we only use wtd centroid longitude and latitude and Total Pop
-#   == columns 4,5,6
+# data fields in data file:
+#     zipcode (really ZCTA), population, 
+#     latitude, longitude, current district
 nc_data = []
-with open('nc_dist12/pop_per_zip') as fp:
+with open('nc_dist12/nc_data_new.csv') as fp:
 	readCSV = csv.reader( fp, delimiter=',' )
-	# skip 2 header lines
-	next( readCSV, None )
-	next( readCSV, None )
-	# now read all the 'real' data
 	for row in readCSV:
+		row[1] = int(row[1])
+		row[4] = int(row[4])
 		nc_data.append( row )
 
 num_datapts = len(nc_data)
+
+# how much to weight the parts of the fitness function
+# : pop-diff between proposed/new districts
+weight1 = 10.0
+# : pop moved between original and proposed/new districts
+weight2 = 1.0
 
 # a simple colormap for the png output
 cmap = [
@@ -87,40 +87,48 @@ class MyChromo(BaseChromo):
 
 	# internal function to calculate the populations for
 	# each proposed voting district (or population-center)
-	def population_per_district( self ):
-		pop_count = [ 0 for i in range(13) ]
-
+	def assign_zip_to_district( self ):
 		# grab a copy of all genes for future reference
-		glist = self.data
+		data = self.data
+		# return values
+		zip_to_distr = [ 0 for i in range(num_datapts) ]
 
 		# accumulate population to closest pop.center/voting distring/gene
 		for n in range(num_datapts):
 			# compute closest pop.center
-			xx = float(nc_data[n][4])
-			yy = float(nc_data[n][5])
-			pp = int(nc_data[n][6])
+			zip = nc_data[n][0]
+			pop = nc_data[n][1]
+			xx = float(nc_data[n][2])
+			yy = float(nc_data[n][3])
 			pop_ctr = 0
 			min_dist = 9.999e9
 			for i in range(13):
-				x = glist[2*i]
-				y = glist[2*i+1]
+				x = data[2*i]
+				y = data[2*i+1]
 				dist = (x-xx)*(x-xx) + (y-yy)*(y-yy)
 				if( dist < min_dist ):
 					min_dist = dist
 					pop_ctr = i
-			# accumulate this population into pop.ctr
-			pop_count[pop_ctr] += pp
 
-		return pop_count
+			# and assign this zip to the pop_ctr
+			zip_to_distr[n] = pop_ctr
+
+		return zip_to_distr
 
 	# calculate the fitness functions
 	# : this is just the difference between biggest and smallest district
-	# : one could imagine more involved functions that take into account
-	#   current district (limit changes to citizens' current assignment)
+	# : also adds in a factor for moving people from one district to another
 	def calcFitness( self ):
-		pop_count = self.population_per_district()
+		zip_to_distr = self.assign_zip_to_district()
 
-		# compute basic stats for fitness fcn
+		# accumulate population per new district
+		pop_count = [ 0 for i in range(13) ]
+		for n in range(num_datapts):
+			pop = nc_data[n][1]
+			distr = zip_to_distr[n]
+			pop_count[distr] = pop_count[distr] + pop
+
+		# compute how balanced the districts are
 		min_pop  = 9.9e9
 		max_pop  = -9.9e9
 		sum_pop  = 0.0
@@ -132,8 +140,17 @@ class MyChromo(BaseChromo):
 				max_pop = xx
 			sum_pop = sum_pop + xx
 
+		# how many people got moved from current district?
+		mov_pop = 0
+		for n in range(num_datapts):
+			pop = nc_data[n][1]
+			orig_distr = nc_data[n][4]
+			new_distr  = zip_to_distr[n]
+			if( orig_distr != new_distr ):
+				mov_pop = mov_pop + pop
+
 		# what should the fitness function look like?
-		fitness = max_pop - min_pop
+		fitness = weight1*(max_pop - min_pop) + weight2*mov_pop
 
 		return fitness
 
@@ -143,9 +160,9 @@ class MyChromo(BaseChromo):
 
 		glist = self.data
 		for n in range(num_datapts):
-			xx = float(nc_data[n][4])
-			yy = float(nc_data[n][5])
-			pp = int(nc_data[n][6])
+			xx = float(nc_data[n][2])
+			yy = float(nc_data[n][3])
+			pp = int(nc_data[n][1])
 			pop_ctr = 0
 			min_dist = 9.999e9
 			for i in range(13):
@@ -163,20 +180,12 @@ class MyChromo(BaseChromo):
 		img  = Image.new( 'RGB', (1000,500), (0,0,0) )
 		draw = ImageDraw.Draw(img)
 
-		glist = self.data
+		zip_to_distr = self.assign_zip_to_district()
+
 		for n in range(num_datapts):
-			xx = float(nc_data[n][4])
-			yy = float(nc_data[n][5])
-			pp = int(nc_data[n][6])
-			pop_ctr = 0
-			min_dist = 9.999e9
-			for i in range(13):
-				x = glist[2*i]
-				y = glist[2*i+1]
-				dist = (x-xx)*(x-xx) + (y-yy)*(y-yy)
-				if( dist < min_dist ):
-					min_dist = dist
-					pop_ctr = i
+			xx = float(nc_data[n][2])
+			yy = float(nc_data[n][3])
+			pop_ctr = zip_to_distr[n]
 
 			# ranges: (-90.0,-70.0), (32.0,37.0)
 			xx = 50*xx + 4500
@@ -193,7 +202,7 @@ class MyChromo(BaseChromo):
 
 def main():
 
-	ga = GenAlg( size=200,
+	ga = GenAlg( size=100,
 		elitismPct   = 0.10,
 		crossoverPct = 0.30,
 		mutationPct  = 0.60,
@@ -205,8 +214,8 @@ def main():
 
 	#
 	# if a pickle-file exists, we load it
-	if( os.path.isfile('ga_voting.dat') ):
-		ga.loadPopulation( 'ga_voting.dat' )
+	if( os.path.isfile('ga_voting2.dat') ):
+		ga.loadPopulation( 'ga_voting2.dat' )
 		print( 'Read init data from file')
 	else:
 		# otherwise, init the gen-alg library from scratch
@@ -234,8 +243,8 @@ def main():
 	#
 	# we'll always save the pickle-file, just delete it
 	# if you want to start over from scratch
-	ga.savePopulation( 'ga_voting.dat' )
-	print('Final data stored to file (rm ga_voting.dat to start fresh)')
+	ga.savePopulation( 'ga_voting2.dat' )
+	print('Final data stored to file (rm ga_voting2.dat to start fresh)')
 
 if __name__ == '__main__':
 	main()
