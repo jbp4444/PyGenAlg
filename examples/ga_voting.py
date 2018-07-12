@@ -24,7 +24,7 @@ import time
 
 from PIL import Image, ImageDraw
 
-from PyGenAlg import GenAlg, BaseChromo
+from PyGenAlg import GenAlg, BaseChromo, GenAlgOps, IoOps
 
 # # # # # # # # # # # # # # # # # # # #
 ## # # # # # # # # # # # # # # # # # #
@@ -195,20 +195,27 @@ class MyChromo(BaseChromo):
 def main():
 
 	ga = GenAlg( size=100,
-		elitismPct   = 0.10,
-		crossoverPct = 0.30,
-		mutationPct  = 0.60,
-		parentsPct   = 0.50,
+		elitism      = 0.10,
+		crossover    = 0.60,
+		pureMutation = 0.30,
+		parentsPct   = 0.80,
 		chromoClass  = MyChromo,
+		#selectionFcn = GenAlgOps.tournamentSelection,
+		#crossoverFcn = GenAlgOps.crossover22,
+		#mutationFcn  = GenAlgOps.mutateFew,
+		#pureMutationSelectionFcn = GenAlgOps.simpleSelection,
+		#pureMutationFcn = GenAlgOps.mutateFew,
+		#feasibleSolnFcn = GenAlgOps.disallowDupes,
 		minOrMax     = 'min',
-		showBest     = 0
+		showBest     = 0,
 	)
 
 	#
 	# if a pickle-file exists, we load it
 	if( False and os.path.isfile('ga_voting.dat') ):
-		ga.loadPopulation( 'ga_voting.dat' )
-		print( 'Read init data from file')
+		pop = IoOps.loadPopulation( ga, 'ga_voting.dat' )
+		ga.appendToPopulation( pop )
+		print( 'Read init data from file ('+str(len(pop))+' chromos)')
 	else:
 		# otherwise, init the gen-alg library from scratch
 		ga.initPopulation()
@@ -239,7 +246,7 @@ def main():
 	#
 	# we'll always save the pickle-file, just delete it
 	# if you want to start over from scratch
-	ga.savePopulation( 'ga_voting.dat' )
+	IoOps.savePopulation( ga, 'ga_voting.dat' )
 	print('Final data stored to file (rm ga_voting.dat to start fresh)')
 
 if __name__ == '__main__':

@@ -23,7 +23,7 @@ import csv
 
 from PIL import Image, ImageDraw
 
-from PyGenAlg import GenAlg, BaseChromo
+from PyGenAlg import GenAlg, BaseChromo, GenAlgOps, IoOps
 
 # # # # # # # # # # # # # # # # # # # #
 ## # # # # # # # # # # # # # # # # # #
@@ -156,6 +156,8 @@ class MyChromo(BaseChromo):
 
 	# could potentially use this to feed into a geo-mapping package?
 	def printCsvResults( self ):
+		zip_to_distr = self.assign_zip_to_district()
+
 		print "longitude, latitude, district"
 
 		glist = self.data
@@ -163,24 +165,23 @@ class MyChromo(BaseChromo):
 			xx = float(nc_data[n][2])
 			yy = float(nc_data[n][3])
 			pp = int(nc_data[n][1])
-			pop_ctr = 0
-			min_dist = 9.999e9
-			for i in range(13):
-				x = glist[2*i]
-				y = glist[2*i+1]
-				dist = (x-xx)*(x-xx) + (y-yy)*(y-yy)
-				if( dist < min_dist ):
-					min_dist = dist
-					pop_ctr = i
+			pop_ctr = zip_to_distr[n]
 			print str(xx) +','+ str(yy) +','+ str(pop_ctr)
 
 	# use PIL to plot each zipcode, colored by the assigned
 	# voting-district
-	def drawImage( self ):
+	def drawImage( self, showCurrent=False ):
 		img  = Image.new( 'RGB', (1000,500), (0,0,0) )
 		draw = ImageDraw.Draw(img)
 
-		zip_to_distr = self.assign_zip_to_district()
+		if( showCurrent ):
+			zip_to_distr = [ 0 for i in range(num_datapts) ]
+			# insert current districts into the right slots
+			for n in range(num_datapts):
+				pop_ctr = int(nc_data[n][4])
+				zip_to_distr[n] = pop_ctr
+		else:
+			zip_to_distr = self.assign_zip_to_district()
 
 		for n in range(num_datapts):
 			xx = float(nc_data[n][2])
@@ -194,7 +195,10 @@ class MyChromo(BaseChromo):
 			cc = cmap[pop_ctr]
 			draw.ellipse( [xx-5,yy-5, xx+5,yy+5], fill=cc )
 
-		img.save( "nc_dist_map.png" )
+		if( showCurrent ):
+			img.save( "nc_dist_map_orig.png" )
+		else:
+			img.save( "nc_dist_map.png" )
 
 # # # # # # # # # # # # # # # # # # # #
 ## # # # # # # # # # # # # # # # # # #
@@ -203,20 +207,32 @@ class MyChromo(BaseChromo):
 def main():
 
 	ga = GenAlg( size=100,
-		elitismPct   = 0.10,
-		crossoverPct = 0.30,
-		mutationPct  = 0.60,
-		parentsPct   = 0.50,
+		elitism      = 0.10,
+		crossover    = 0.60,
+		pureMutation = 0.30,
+		parentsPct   = 0.80,
 		chromoClass  = MyChromo,
+		#selectionFcn = GenAlgOps.tournamentSelection,
+		#crossoverFcn = GenAlgOps.crossover22,
+		#mutationFcn  = GenAlgOps.mutateFew,
+		#pureMutationSelectionFcn = GenAlgOps.simpleSelection,
+		#pureMutationFcn = GenAlgOps.mutateFew,
+		#feasibleSolnFcn = GenAlgOps.disallowDupes,
 		minOrMax     = 'min',
-		showBest     = 0
+		showBest     = 0,
 	)
 
 	#
 	# if a pickle-file exists, we load it
 	if( os.path.isfile('ga_voting2.dat') ):
-		ga.loadPopulation( 'ga_voting2.dat' )
-		print( 'Read init data from file')
+		pop = IoOps.loadPopulation( ga, 'ga_voting2.dat' )
+		ga.appendToPopulation( pop )
+		print( 'Read init data from file ('+str(len(pop))+' chromos)')
+		if( len(pop) < ga.population_sz ):
+			# we need to fill this out with random data
+			pop = IoOps.randomPopulation( ga, ga.population_sz-len(pop) )
+			ga.appendToPopulation( pop )
+			print( '  appended '+str(len(pop))+' random chromos' )
 	else:
 		# otherwise, init the gen-alg library from scratch
 		ga.initPopulation()
@@ -240,10 +256,11 @@ def main():
 		print( ga.population[i] )
 	ga.population[0].drawImage()
 
+	ga.population[0].drawImage(showCurrent=True)
 	#
 	# we'll always save the pickle-file, just delete it
 	# if you want to start over from scratch
-	ga.savePopulation( 'ga_voting2.dat' )
+	IoOps.savePopulation( ga, 'ga_voting2.dat' )
 	print('Final data stored to file (rm ga_voting2.dat to start fresh)')
 
 if __name__ == '__main__':

@@ -10,7 +10,7 @@ import random
 
 from PIL import Image, ImageDraw
 
-from PyGenAlg import GenAlg, BaseChromo
+from PyGenAlg import GenAlg, BaseChromo, GenAlgOps, IoOps
 
 # # # # # # # # # # # # # # # # # # # #
 ## # # # # # # # # # # # # # # # # # #
@@ -46,22 +46,9 @@ cmap = [ (0,0,0),
 
 
 class MyChromo(BaseChromo):
-	def __init__( self, params={} ):
+	def __init__( self ):
 		BaseChromo.__init__( self, size=3*num_sprayers,
 			range=dataRanges, dtype=float )
-
-		if( type(params) is not dict ):
-			raise ValueError('Params must be a dictionary')
-
-	# we'll override the crossover function to just
-	# point at crossover11 (1 pt of cross over, producing 1 child)
-	def crossover( self, father ):
-		return self.crossover11( father )
-
-	# we'll override the mutate function to just
-	# point at the mutateAll function
-	def mutate( self ):
-		return self.mutateAll()
 
 	# internal func to count 'units' of water on each
 	# block of the grid which defines the field
@@ -134,20 +121,26 @@ class MyChromo(BaseChromo):
 def main():
 
 	ga = GenAlg( size=20,
-		elitismPct   = 0.10,
-		crossoverPct = 0.30,
-		mutationPct  = 0.60,
-		parentsPct   = 0.50,
+		elitism      = 0.10,
+		crossover    = 0.60,
+		pureMutation = 0.30,
+		parentsPct   = 0.80,
 		chromoClass  = MyChromo,
+		#selectionFcn = GenAlgOps.tournamentSelection,
+		#crossoverFcn = GenAlgOps.crossover22,
+		#mutationFcn  = GenAlgOps.mutateFew,
+		#pureMutationSelectionFcn = GenAlgOps.simpleSelection,
+		#pureMutationFcn = GenAlgOps.mutateFew,
+		#feasibleSolnFcn = GenAlgOps.disallowDupes,
 		minOrMax     = 'max',
-		showBest     = 0
+		showBest     = 0,
 	)
 
 	#
 	# if a pickle-file exists, we load it
 	if( os.path.isfile('ga_sprinkler.dat') ):
-		ga.loadPopulation( 'ga_sprinkler.dat' )
-		print( 'Read init data from file')
+		pop = IoOps.loadPopulation( ga, 'ga_sprinkler.dat' )
+		ga.appendToPopulation( pop )
 	else:
 		# otherwise, init the gen-alg library from scratch
 		ga.initPopulation()
@@ -163,7 +156,6 @@ def main():
 		print( str(i) + " best chromo:" )
 		for j in range(1):
 			print( ga.population[j] )
-		ga.population[0].drawImage()
 
 	#
 	# all done ... output final results
@@ -175,7 +167,7 @@ def main():
 	#
 	# we'll always save the pickle-file, just delete it
 	# if you want to start over from scratch
-	ga.savePopulation( 'ga_sprinkler.dat' )
+	IoOps.savePopulation( ga, 'ga_sprinkler.dat' )
 	print('Final data stored to file (rm ga_sprinkler.dat to start fresh)')
 
 if __name__ == '__main__':

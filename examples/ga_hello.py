@@ -8,6 +8,7 @@
 
 import os
 import random
+import string
 
 from PyGenAlg import GenAlg, BaseChromo, GenAlgOps, IoOps
 
@@ -18,29 +19,33 @@ from PyGenAlg import GenAlg, BaseChromo, GenAlgOps, IoOps
 # domain-specific data (for the problem at hand)
 
 # chromo size is 4 == pennies, nickels, dimes, quarters
+letters = string.ascii_uppercase + string.ascii_lowercase + string.punctuation + ' '
 
 # target value we're aiming for:
-target = 0.44
+solutionWord = 'Hello World!'
+solution = []
+for i in range(len(solutionWord)):
+	j = string.find( letters, solutionWord[i] )
+	solution.append( j )
+
 
 class MyChromo(BaseChromo):
 	def __init__( self ):
-		BaseChromo.__init__( self, size=4,
-			range=(0,10), dtype=int )
+		BaseChromo.__init__( self, size=len(solution),
+			range=(0,len(letters)-1), dtype=int )
 
-	# we'll use the default crossover and mutate functions
-	# from BaseChromo (==crossover11 and mutateAll)
+	def __str__( self ):
+		txt = 'data=' + ''.join( letters[i] for i in self.data ) \
+				+ ' .. fit=' + str(self.fitness)
+		return txt
 
-	# calculate the fitness function
 	def calcFitness( self ):
-		ccc = self.data
-		val = 0.01*ccc[0] + 0.05*ccc[1] \
-				+ 0.10*ccc[2] + 0.25*ccc[3]
-		# we really want to make sure we give the correct amount
-		# hence the heavier weighting; but we also want to minimize
-		# the number of coins (lower weight)
-		fitness = -100000.0*(val - target)*(val - target) \
-				-1.0*(ccc[0]+ccc[1]+ccc[2]+ccc[3])
-		return fitness
+		rtn = 0
+		data = self.data
+		for i in range(len(solution)):
+			if( solution[i] == data[i] ):
+				rtn = rtn + 1
+		return rtn
 
 # # # # # # # # # # # # # # # # # # # #
 ## # # # # # # # # # # # # # # # # # #
@@ -48,7 +53,7 @@ class MyChromo(BaseChromo):
 
 def main():
 
-	ga = GenAlg( size=20,
+	ga = GenAlg( size=100,
 		elitism      = 0.10,
 		crossover    = 0.60,
 		pureMutation = 0.30,
@@ -66,8 +71,8 @@ def main():
 
 	#
 	# if a data-file exists, we load it
-	if( os.path.isfile('ga_coins.dat') ):
-		pop = IoOps.loadPopulation( ga, 'ga_coins.dat' )
+	if( False and os.path.isfile('ga_hello.dat') ):
+		pop = IoOps.loadPopulation( ga, 'ga_hello.dat' )
 		ga.appendToPopulation( pop )
 		print( 'Read init data from file ('+str(len(pop))+' chromos)')
 	else:
@@ -96,8 +101,8 @@ def main():
 	#
 	# we'll always save the pickle-file, just delete it
 	# if you want to start over from scratch
-	IoOps.savePopulation( ga, 'ga_coins.dat' )
-	print('Final data stored to file (rm ga_coins.dat to start fresh)')
+	IoOps.savePopulation( ga, 'ga_hello.dat' )
+	print('Final data stored to file (rm ga_hello.dat to start fresh)')
 
 if __name__ == '__main__':
 	main()

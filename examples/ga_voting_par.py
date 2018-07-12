@@ -221,7 +221,12 @@ class the_code( Process ):
 			crossoverPct = 0.30,
 			mutationPct  = 0.50,
 			migrationPct = 0.10,
-			#migrationFcn = self.migrationFcn,
+			#selectionFcn = GenAlgOps.tournamentSelection,
+			#crossoverFcn = GenAlgOps.crossover22,
+			#mutationFcn  = GenAlgOps.mutateFew,
+			#pureMutationSelectionFcn = GenAlgOps.simpleSelection,
+			#pureMutationFcn = GenAlgOps.mutateFew,
+			#feasibleSolnFcn = GenAlgOps.disallowDupes,
 			migrationSendFcn = self.migrationSend,
 			migrationRecvFcn = self.migrationRecv,
 			parentsPct   = 0.50,
@@ -230,15 +235,9 @@ class the_code( Process ):
 			showBest     = 0
 		)
 
-		#
-		# if a pickle-file exists, we load it
-		if( False and os.path.isfile('ga_voting.dat') ):
-			ga.loadPopulation( 'ga_voting.dat' )
-			print( 'Read init data from file')
-		else:
-			# otherwise, init the gen-alg library from scratch
-			ga.initPopulation()
-			print( 'Created random init data' )
+		# otherwise, init the gen-alg library from scratch
+		ga.initPopulation()
+		print( 'Created random init data' )
 
 		#
 		# Run it !!
@@ -315,7 +314,7 @@ class the_code( Process ):
 
 
 def main():
-	parMgr = ParallelMgr( num_pes=8 )
+	parMgr = ParallelMgr( num_pes=4 )
 
 	parMgr.runWorkers( the_code )
 
