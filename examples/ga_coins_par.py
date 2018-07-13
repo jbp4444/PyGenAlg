@@ -14,9 +14,6 @@ class MyChromo(BaseChromo):
 		BaseChromo.__init__( self, size=4,
 			range=(0,10), dtype=int )
 
-	# we'll use the default crossover and mutate functions
-	# from BaseChromo (==crossover11 and mutateAll)
-
 	# calculate the fitness function
 	def calcFitness( self ):
 		ccc = self.data
