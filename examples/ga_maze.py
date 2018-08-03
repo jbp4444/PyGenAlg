@@ -9,7 +9,7 @@ import os
 import sys
 import random
 
-from PyGenAlg import GenAlg, BaseChromo
+from PyGenAlg import GenAlg, BaseChromo, IoOps
 
 # # # # # # # # # # # # # # # # # # # #
 ## # # # # # # # # # # # # # # # # # #
@@ -92,8 +92,9 @@ def main():
 	#
 	# if a data-file exists, we load it
 	if( os.path.isfile('ga_maze.dat') ):
-		ga.loadPopulation( 'ga_maze.dat' )
-		print( 'Read init data from file')
+		pop = IoOps.loadPopulation( ga, 'ga_maze.dat' )
+		ga.appendToPopulation( pop )
+		print( 'Read init data from file ('+str(len(pop))+' chromos)')
 	else:
 		# otherwise, init the gen-alg library from scratch
 		ga.initPopulation()
@@ -117,7 +118,7 @@ def main():
 	#
 	# we'll always save the pickle-file, just delete it
 	# if you want to start over from scratch
-	ga.savePopulation( 'ga_maze.dat' )
+	IoOps.savePopulation( ga, 'ga_maze.dat' )
 	print('Final data stored to file (rm ga_maze.dat to start fresh)')
 
 if __name__ == '__main__':
