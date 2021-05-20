@@ -25,7 +25,7 @@ letters = string.ascii_uppercase + string.ascii_lowercase + string.punctuation +
 solutionWord = 'Hello World!'
 solution = []
 for i in range(len(solutionWord)):
-	j = string.find( letters, solutionWord[i] )
+	j = letters.find( solutionWord[i] )
 	solution.append( j )
 
 
@@ -57,7 +57,6 @@ def main():
 		elitism      = 0.10,
 		crossover    = 0.60,
 		pureMutation = 0.30,
-		parentsPct   = 0.80,
 		chromoClass  = MyChromo,
 		#selectionFcn = GenAlgOps.tournamentSelection,
 		#crossoverFcn = GenAlgOps.crossover22,
@@ -68,6 +67,7 @@ def main():
 		minOrMax     = 'max',
 		showBest     = 0,
 	)
+	ga.describe()
 
 	#
 	# if a data-file exists, we load it

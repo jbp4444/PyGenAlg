@@ -56,7 +56,6 @@ class the_code( Process ):
             mutationPct  = 0.50,
             migrationPct = 0.10,
             migrationFcn = self.migrationFcn,
-            parentsPct   = 0.50,
             chromoClass  = MyChromo,
             minOrMax     = 'max',
             showBest     = 0

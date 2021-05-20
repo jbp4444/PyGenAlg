@@ -1,10 +1,9 @@
 #
-# genetic algorithm to make change for a given target value;
-# attempts to minize the difference in amounts as well as
-# the number of coins given
+# genetic algorithm to find regression coeffs
 #
-# Copyright (C) 2018, John Pormann, Duke University Libraries
+# we'll set the input stream to the 2 nums, expect output stream to have sum
 #
+# fitness func will be to run the code against 5+ inputs, #right answers = fitness val
 
 import os
 import random
@@ -17,27 +16,45 @@ from PyGenAlg import GenAlg, BaseChromo, GenAlgOps, IoOps
 
 # domain-specific data (for the problem at hand)
 
-# chromo size is 4 == pennies, nickels, dimes, quarters
+# solution matrix:  1*a + 1*a^2 + 2*b + 2*b^2 + 3
+S_Ca  = 1
+S_Ca2 = 1
+S_Cb  = 2
+S_Cb2 = 2
+S_Cc  = 3
 
-# target value we're aiming for:
-target = 0.44
+# target values we're aiming for:
+# : while we want random #s, we need them to be fixed across runs
+random.seed( 1234567 )
+inputs = []
+for i in range(10000):
+	a = random.randint(0,100)
+	b = random.randint(0,100)
+	inputs.append( [a,b] )
+#print( len(inputs) )
 
 class MyChromo(BaseChromo):
 	def __init__( self ):
-		BaseChromo.__init__( self, size=4,
-			range=(0,10), dtype=int )
+		BaseChromo.__init__( self, size=5, dtype=float )
 
 	# calculate the fitness function
 	def calcFitness( self ):
-		ccc = self.data
-		val = 0.01*ccc[0] + 0.05*ccc[1] \
-				+ 0.10*ccc[2] + 0.25*ccc[3]
-		# we really want to make sure we give the correct amount
-		# hence the heavier weighting; but we also want to minimize
-		# the number of coins (lower weight)
-		fitness = -100000.0*(val - target)*(val - target) \
-				-1.0*(ccc[0]+ccc[1]+ccc[2]+ccc[3])
+		# load the chromos as coeffs
+		Ca  = self.data[0]
+		Ca2 = self.data[1]
+		Cb  = self.data[2]
+		Cb2 = self.data[3]
+		Cc  = self.data[4]  # constant
+
+		fitness = 0
+		for (a,b) in inputs:
+			y_good = S_Ca*a + S_Ca2*a*a + S_Cb*b + S_Cb2*b*b + S_Cc
+			y_calc =   Ca*a +   Ca2*a*a +   Cb*b +   Cb2*b*b +   Cc
+
+			fitness = fitness + (y_good-y_calc)*(y_good-y_calc)
+
 		return fitness
+
 
 # # # # # # # # # # # # # # # # # # # #
 ## # # # # # # # # # # # # # # # # # #
@@ -45,10 +62,10 @@ class MyChromo(BaseChromo):
 
 def main():
 
-	ga = GenAlg( size=20,
-		elitism      = 0.10,
-		crossover    = 0.60,
-		pureMutation = 0.30,
+	ga = GenAlg( size=500,
+		elitism      = 0.05,
+		crossover    = 0.55,
+		pureMutation = 0.40,
 		chromoClass  = MyChromo,
 		#selectionFcn = GenAlgOps.tournamentSelection,
 		#crossoverFcn = GenAlgOps.crossover22,
@@ -56,14 +73,14 @@ def main():
 		#pureMutationSelectionFcn = GenAlgOps.simpleSelection,
 		#pureMutationFcn = GenAlgOps.mutateFew,
 		#feasibleSolnFcn = GenAlgOps.disallowDupes,
-		minOrMax     = 'max',
+		minOrMax     = 'min',
 		showBest     = 0,
 	)
 
 	#
 	# if a data-file exists, we load it
-	if( os.path.isfile('ga_coins.dat') ):
-		pop = IoOps.loadPopulation( ga, 'ga_coins.dat' )
+	if( os.path.isfile('ga_regr.dat') ):
+		pop = IoOps.loadPopulation( ga, 'ga_regr.dat' )
 		ga.appendToPopulation( pop )
 		print( 'Read init data from file ('+str(len(pop))+' chromos)')
 	else:
@@ -78,22 +95,23 @@ def main():
 		ga.evolve( 10 )
 
 		# give some running feedback on our progress
-		print( 'iter '+str(i) + ", best chromo:" )
-		for i in range(10):
-			print( ga.population[i] )
+		txt = ''
+		for j in range(10):
+			txt = txt + ' %d'%(ga.population[j].fitness)
+		print( 'iter '+str(i) + ", best fitnesses:" + txt )
 
 	#
 	# all done ... output final results
 	print( "\nfinal best chromos:" )
-	for i in range(10):
+	for i in range(5):
 		print( ga.population[i] )
 
 
 	#
 	# we'll always save the pickle-file, just delete it
 	# if you want to start over from scratch
-	IoOps.savePopulation( ga, 'ga_coins.dat' )
-	print('Final data stored to file (rm ga_coins.dat to start fresh)')
+	IoOps.savePopulation( ga, 'ga_regr.dat' )
+	print('Final data stored to file (rm ga_regr.dat to start fresh)')
 
 if __name__ == '__main__':
 	main()

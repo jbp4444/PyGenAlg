@@ -115,6 +115,21 @@ class MyChromo(BaseChromo):
 
 		return zip_to_distr
 
+	# internal function to calculate the populations for
+	# each proposed voting district (or population-center)
+	def population_per_district( self ):
+		zip_to_distr = self.assign_zip_to_district()
+
+		# accumulate population per new district
+		pop_count = [ 0 for i in range(13) ]
+		for n in range(num_datapts):
+			pop = nc_data[n][1]
+			distr = zip_to_distr[n]
+			pop_count[distr] = pop_count[distr] + pop
+
+		return pop_count
+
+
 	# calculate the fitness functions
 	# : this is just the difference between biggest and smallest district
 	# : also adds in a factor for moving people from one district to another
@@ -210,7 +225,6 @@ def main():
 		elitism      = 0.10,
 		crossover    = 0.60,
 		pureMutation = 0.30,
-		parentsPct   = 0.80,
 		chromoClass  = MyChromo,
 		#selectionFcn = GenAlgOps.tournamentSelection,
 		#crossoverFcn = GenAlgOps.crossover22,
@@ -252,8 +266,15 @@ def main():
 	#
 	# all done ... output final results
 	print( "\nfinal best chromos:" )
-	for i in range(10):
-		print( ga.population[i] )
+	for i in range(1):
+		pop = ga.population[i]
+		# print( ga.population[i] )
+		pop_ct = pop.population_per_district()
+		for j in range(len(pop_ct)):
+			ct = pop_ct[j]
+			x = pop.data[2*j]
+			y = pop.data[2*j+1]
+			print( '  %10.4f %10.4f : %10d' % (x,y,ct) )
 	ga.population[0].drawImage()
 
 	ga.population[0].drawImage(showCurrent=True)

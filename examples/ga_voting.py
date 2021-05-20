@@ -125,16 +125,20 @@ class MyChromo(BaseChromo):
 		min_pop  = 9.9e9
 		max_pop  = -9.9e9
 		sum_pop  = 0.0
+		zero_pop = 0
 		for i in range(13):
 			xx = pop_count[i]
 			if( xx < min_pop ):
 				min_pop = xx
 			if( xx > max_pop ):
 				max_pop = xx
+			if( xx == 0 ):
+				zero_pop = zero_pop + 1
 			sum_pop = sum_pop + xx
 
 		# what should the fitness function look like?
-		fitness = max_pop - min_pop
+		# : add penalty for zero-population districts
+		fitness = max_pop - min_pop + 10000000*zero_pop*zero_pop
 
 		return fitness
 
@@ -194,11 +198,10 @@ class MyChromo(BaseChromo):
 
 def main():
 
-	ga = GenAlg( size=100,
+	ga = GenAlg( size=250,
 		elitism      = 0.10,
 		crossover    = 0.60,
 		pureMutation = 0.30,
-		parentsPct   = 0.80,
 		chromoClass  = MyChromo,
 		#selectionFcn = GenAlgOps.tournamentSelection,
 		#crossoverFcn = GenAlgOps.crossover22,
@@ -212,7 +215,7 @@ def main():
 
 	#
 	# if a pickle-file exists, we load it
-	if( False and os.path.isfile('ga_voting.dat') ):
+	if( os.path.isfile('ga_voting.dat') ):
 		pop = IoOps.loadPopulation( ga, 'ga_voting.dat' )
 		ga.appendToPopulation( pop )
 		print( 'Read init data from file ('+str(len(pop))+' chromos)')
@@ -240,7 +243,15 @@ def main():
 	# all done ... output final results
 	print( "\nfinal best chromos:" )
 	for i in range(1):
-		print( ga.population[i] )
+		pop = ga.population[i]
+		# print( ga.population[i] )
+		pop_ct = pop.population_per_district()
+		for j in range(len(pop_ct)):
+			ct = pop_ct[j]
+			x = pop.data[2*j]
+			y = pop.data[2*j+1]
+			print( '  %10.4f %10.4f : %10d' % (x,y,ct) )
+	
 	ga.population[0].drawImage()
 
 	#

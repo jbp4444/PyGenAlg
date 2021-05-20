@@ -127,16 +127,20 @@ class MyChromo(BaseChromo):
 		min_pop  = 9.9e9
 		max_pop  = -9.9e9
 		sum_pop  = 0.0
+		zero_pop = 0
 		for i in range(13):
 			xx = pop_count[i]
 			if( xx < min_pop ):
 				min_pop = xx
 			if( xx > max_pop ):
 				max_pop = xx
+			if( xx == 0 ):
+				zero_pop = zero_pop + 1
 			sum_pop = sum_pop + xx
 
 		# what should the fitness function look like?
-		fitness = max_pop - min_pop
+		# : add penalty for zero-population districts
+		fitness = max_pop - min_pop + 10000000*zero_pop*zero_pop
 
 		return fitness
 
@@ -216,7 +220,7 @@ class the_code( Process ):
 
 		# TODO: calculate the splitting across the PEs
 
-		ga = GenAlg( size=100,
+		ga = GenAlg( size=250,
 			elitismPct   = 0.10,
 			crossoverPct = 0.30,
 			mutationPct  = 0.50,
@@ -229,7 +233,6 @@ class the_code( Process ):
 			#feasibleSolnFcn = GenAlgOps.disallowDupes,
 			migrationSendFcn = self.migrationSend,
 			migrationRecvFcn = self.migrationRecv,
-			parentsPct   = 0.50,
 			chromoClass  = MyChromo,
 			minOrMax     = 'min',
 			showBest     = 0
@@ -243,7 +246,7 @@ class the_code( Process ):
 		# Run it !!
 		# : we'll just do 10 epochs of 10 steps each
 		t0 = time.time()
-		for i in range(10):
+		for i in range(15):
 			ga.evolve( 10 )
 
 			# give some running feedback on our progress
@@ -261,11 +264,19 @@ class the_code( Process ):
 
 		#
 		# all done ... output final results
-		print( "\nfinal best chromos:" )
-		for i in range(1):
-			print( bestVals[i] )
+		if( tid == 0 ):
+			print( "\nfinal best chromos:" )
+			for i in range(1):
+				pop = bestVals[i].data
+				# print( ga.population[i] )
+				pop_ct = bestVals[i].population_per_district()
+				for j in range(len(pop_ct)):
+					ct = pop_ct[j]
+					x = pop[2*j]
+					y = pop[2*j+1]
+					print( '  %10.4f %10.4f : %10d' % (x,y,ct) )
 
-		bestVals[0].drawImage()
+			bestVals[0].drawImage()
 
 		#
 		# we'll always save the pickle-file, just delete it

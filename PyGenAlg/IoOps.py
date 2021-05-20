@@ -1,3 +1,8 @@
+#
+# some basic gen-alg helper functions
+#
+# Copyright (C) 2018-2020, John Pormann, Duke University Libraries
+#
 
 # for parallel runs, use start/finish to read just the pieces of data
 # each PE needs for it's local population (file==global population)
@@ -20,13 +25,13 @@ def loadPopulation( gaMgr, filename, start=0, finish=None ):
 		try:
 			while( c < finish ):
 				line = fp.readline()
-				#print( 'line ['+line+']' )
+				# print( 'line ['+line+']' )
 				p = chrClass()
 				p.unpackData( line )
 				pop.append( p )
 				c = c + 1
-		except:
-			pass
+		except Exception as e:
+			print( '** ERROR: cannot convert line: '+str(e) )
 	
 	return pop
 

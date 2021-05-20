@@ -7,6 +7,7 @@
 
 import os
 import random
+import math
 
 from PIL import Image, ImageDraw
 
@@ -21,26 +22,20 @@ from PyGenAlg import GenAlg, BaseChromo, GenAlgOps, IoOps
 # assume a 100x100 field with 5 circular water sprinklers
 # each one has an (x,y) center == 2 chromos,
 #  and a radius == 3rd chromo
-num_sprayers = 5
+#  and start/stop angle = 4th/5th chromos
+num_sprayers = 4
 # some of them may have smaller/larger spray-radii
 dataRanges = [
-	(0,100), (0,100), (1,20),
-	(0,100), (0,100), (1,20),
-	(0,100), (0,100), (1,20),
-	(0,100), (0,100), (1,20),
-	(0,100), (0,100), (1,20)
+	(0,100), (0,100), (1,30), (-math.pi,math.pi), (-math.pi,math.pi),
+	(0,100), (0,100), (1,30), (-math.pi,math.pi), (-math.pi,math.pi),
+	(0,100), (0,100), (1,40), (-math.pi,math.pi), (-math.pi,math.pi),
+	(0,100), (0,100), (1,40), (-math.pi,math.pi), (-math.pi,math.pi),
+	(0,100), (0,100), (1,50), (-math.pi,math.pi), (-math.pi,math.pi)
 ]
-# dataRanges = [
-# 	(0,100), (0,100), (1,30),
-# 	(0,100), (0,100), (1,30),
-# 	(0,100), (0,100), (1,40),
-# 	(0,100), (0,100), (1,40),
-# 	(0,100), (0,100), (1,50)
-# ]
 # fitness = number of squares with at least 1 unit of water
 # but negative fitness if more than 2 units;
 # i.e. waterlogged plants will die
-scoring = [ 0, 10, 5, -1, -10, -20 ]
+scoring = [ 0, 10, 7, 2, -2, -5 ]
 
 # a simple colormap for the png output
 cmap = [ (0,0,0),
@@ -55,7 +50,7 @@ cutout_region = [ 75, 25 ]
 
 class MyChromo(BaseChromo):
 	def __init__( self ):
-		BaseChromo.__init__( self, size=3*num_sprayers,
+		BaseChromo.__init__( self, size=5*num_sprayers,
 			range=dataRanges, dtype=float )
 
 	# internal func to count 'units' of water on each
@@ -66,16 +61,21 @@ class MyChromo(BaseChromo):
 		# how much water hits each grid-square?
 		water = [ 0 for i in range(100*100) ]
 		for i in range(num_sprayers):
-			xc  = self.data[3*i]
-			yc  = self.data[3*i+1]
-			rad = self.data[3*i+2]
+			xc  = self.data[5*i]
+			yc  = self.data[5*i+1]
+			rad = self.data[5*i+2]
 			rad2 = rad*rad
+			ang0 = self.data[5*i+3]
+			ang1 = self.data[5*i+4]
 
 			for x in range(int(xc-rad-1),int(xc+rad+1)):
 				if( (x < 0) or (x >= 100) ):
 					continue
 				for y in range(int(yc-rad-1),int(yc+rad+1)):
 					if( (y < 0) or (y >= 100) ):
+						continue
+					ang = math.atan2( y-yc, x-xc )
+					if( (ang<ang0) or (ang>ang1) ):
 						continue
 					dd = (x-xc)*(x-xc) + (y-yc)*(y-yc)
 					if( dd <= rad2 ):
@@ -122,13 +122,13 @@ class MyChromo(BaseChromo):
 
 		# put circles where sprinkler-centers are
 		for i in range(num_sprayers):
-			xc  = self.data[3*i]
-			yc  = self.data[3*i+1]
-			rad = self.data[3*i+2]
+			xc  = self.data[5*i]
+			yc  = self.data[5*i+1]
+			rad = self.data[5*i+2]
 			draw.ellipse( (5*xc-10,5*yc-10,5*xc+10,5*yc+10), outline=(255,255,255), width=1 )
 			draw.ellipse( (5*xc-5*rad,5*yc-5*rad,5*xc+5*rad,5*yc+5*rad), outline=(255,255,255), width=1 )
 
-		img.save( "field_spray.png" )
+		img.save( "field_spray2.png" )
 
 # # # # # # # # # # # # # # # # # # # #
 ## # # # # # # # # # # # # # # # # # #
@@ -153,8 +153,8 @@ def main():
 
 	#
 	# if a pickle-file exists, we load it
-	if( os.path.isfile('ga_sprinkler.dat') ):
-		pop = IoOps.loadPopulation( ga, 'ga_sprinkler.dat' )
+	if( os.path.isfile('ga_sprinkler2.dat') ):
+		pop = IoOps.loadPopulation( ga, 'ga_sprinkler2.dat' )
 		ga.appendToPopulation( pop )
 		print( 'Read init data from file ('+str(len(pop))+' chromos)')
 	else:
@@ -183,8 +183,8 @@ def main():
 	#
 	# we'll always save the pickle-file, just delete it
 	# if you want to start over from scratch
-	IoOps.savePopulation( ga, 'ga_sprinkler.dat' )
-	print('Final data stored to file (rm ga_sprinkler.dat to start fresh)')
+	IoOps.savePopulation( ga, 'ga_sprinkler2.dat' )
+	print('Final data stored to file (rm ga_sprinkler2.dat to start fresh)')
 
 if __name__ == '__main__':
 	main()

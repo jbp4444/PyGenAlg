@@ -3,8 +3,10 @@
 #
 # you MUST override calcFitness()
 #
-# Copyright (C) 2018, John Pormann, Duke University Libraries
+# Copyright (C) 2018-2020, John Pormann, Duke University Libraries
 #
+
+# TODO: add support for double, unsigned-int, byte, etc.
 
 import random
 from copy import deepcopy
@@ -54,13 +56,22 @@ class BaseChromo(object):
 			self.dataRange = [ dr for i in range(self.chromo_sz) ]
 		# TODO: check that it is a list of 2-tuples
 
-		# TODO: check mutateNum and mutateNumPct
-		# TODO: check mutatePct ... naming is confusing too
+		# calculate the struct formatting string
+		fmt = '<'
+		for tp in self.dataType:
+			if( tp is int ):
+				fmt = fmt + 'i'
+			elif( tp is float ):
+				fmt = fmt + 'f'
+		self.struct_fmt = fmt
 
-		# start with random data
 		if( in_data != None ):
 			self.data = in_data
 		else:
+			# start with all chromos==min-value
+			# self.data = [ self.dataRange[i][0] for i in range(self.chromo_sz) ]
+
+			# start with random data
 			self.data = []
 			for i in range(self.chromo_sz):
 				if( self.dataType[i] is float ):
@@ -97,15 +108,14 @@ class BaseChromo(object):
 	# format is:  fmt-string==base64data==
 	# where fmt-string is the struct.pack format string
 	# based on the Chromo's dataType entries
+	def toBytes(self):
+		# TODO: could try to memoize this, but since we use deepcopy elsewhere
+		#       we'd need to manually zero it out for every child-obj created
+		return struct.pack( self.struct_fmt, *self.data )
 	def packData(self):
-		fmt = '<'
-		for tp in self.dataType:
-			if( tp is int ):
-				fmt = fmt + 'i'
-			elif( tp is float ):
-				fmt = fmt + 'f'
-			# TODO: add double, etc.
-		return fmt + '==' + base64.b64encode( struct.pack( fmt, *self.data ) )
+		# base64encode returns bytes .. convert to str and trim off the b' prefix
+		b64 = str(base64.b64encode( self.toBytes() ))
+		return self.struct_fmt + '==' + b64[1:]
 
 	# unpack the data from the text/base64 format
 	def unpackData(self,data):
@@ -117,20 +127,14 @@ class BaseChromo(object):
 		#else:
 		in_fmt = data[:i]
 		udata = base64.b64decode( data[i+2:] )
-		fmt = '<'
-		for tp in self.dataType:
-			if( tp is int ):
-				fmt = fmt + 'i'
-			elif( tp is float ):
-				fmt = fmt + 'f'
-			# TODO: add double, etc.
-		if( in_fmt != fmt ):
+		if( in_fmt != self.struct_fmt ):
 			# this fmt string does not match this Chromo;
 			# maybe you grabbed the wrong file for this GA?
 			# TODO: throw error?
+			print( "** ERROR: file-format does not match (%s vs %s)"%(in_fmt,self.struct_fmt) )
 			return
 		# store into the 'data' array
-		vals = struct.unpack( fmt, udata )
+		vals = struct.unpack( self.struct_fmt, udata )
 		for i in range(self.chromo_sz):
 			self.data[i] = vals[i]
 

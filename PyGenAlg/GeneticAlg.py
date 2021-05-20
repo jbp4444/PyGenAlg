@@ -1,7 +1,7 @@
 #
 # a "basic" genetic algorithm class
 #
-# Copyright (C) 2018, John Pormann, Duke University Libraries
+# Copyright (C) 2018-2020, John Pormann, Duke University Libraries
 #
 
 import math
@@ -23,28 +23,32 @@ class GenAlg:
 		self.crossover     = kwargs.get( 'crossover', 0.80)
 		self.pureMutation  = kwargs.get( 'pureMutation', 0.10 )
 		self.migration     = kwargs.get( 'migration', 0.0 )
-		self.parents       = kwargs.get( 'parents', 0.50 )
 		# other kwargs ...
 		self.chromoClass   = kwargs.get( 'chromoClass', None )
 		self.population_sz = kwargs.get( 'size', 10 )
 		self.minOrMax      = kwargs.get( 'minOrMax', 'max' )
 		self.showBest      = kwargs.get( 'showBest', 0 )
-		self.removeDupes   = kwargs.get( 'removeDupes', False )
 		# selection, crossover, and mutation functions
 		self.selectionFcn  = kwargs.get( 'selectionFcn', GenAlgOps.tournamentSelection )
 		self.crossoverFcn  = kwargs.get( 'crossoverFcn', GenAlgOps.crossover12 )
 		self.mutationFcn   = kwargs.get( 'mutationFcn', GenAlgOps.mutateFew )
 		self.pureMutationSelectionFcn = kwargs.get( 'pureMutationSelectionFcn', GenAlgOps.simpleSelection )
 		self.pureMutationFcn = kwargs.get( 'pureMutationFcn', GenAlgOps.mutateFew )
-		self.feasibleSolnFcn = kwargs.get( 'feasibleSolnFcn', GenAlgOps.alwaysTrue )
+		self.feasibleSolnFcn = kwargs.get( 'feasibleSolnFcn', GenAlgOps.allowAll )
 		self.selectionParams = kwargs.get( 'selectionParams', {} )
 		# hooks for migration
 		self.migrationSendFcn = kwargs.get( 'migrationSendFcn', None )
 		self.migrationRecvFcn = kwargs.get( 'migrationRecvFcn', None )
+		self.migrationSkip    = kwargs.get( 'migrationSkip', 1 )
+		# optional params to be passed to functions
+		self.params           = kwargs.get( 'params', {} )
 
 		# calculated/to-be-calculated values
 		self.population = []
 
+		# convert percentages to integer numbers of chromos
+		# TODO: could/should check if float and < 1.0 then assume it's a percentage
+		#       (otherwise can't test with pct=100% since that would not be < 1)
 		if( self.elitism < 1 ):
 			self.elitism = int( self.population_sz * self.elitism + 0.5 )
 		if( self.crossover < 1 ):
@@ -56,9 +60,6 @@ class GenAlg:
 
 		# TODO: check that sum(elitism+crossover+migration+pureMutation) == pop_sz
 		#       and adjust if needed
-
-		if( self.parents < 1 ):
-			self.parents = int( self.population_sz * self.parents + 0.5 )
 
 		if( (self.minOrMax!='min') and (self.minOrMax!='max') ):
 			raise ValueError('minOrMax must be min or max')
@@ -77,6 +78,7 @@ class GenAlg:
 				raise ValueError('migrationSendFcn is not callable')
 			if( not callable(self.migrationRecvFcn) ):
 				raise ValueError('migrationRecvFcn is not callable')
+			self.migrationCounter = 0
 
 		# TODO: check that chromoClass is a suitable class
 		a = self.chromoClass()
@@ -84,18 +86,28 @@ class GenAlg:
 			raise ValueError('chromoClass does not have calcFitness')
 		# TODO: check that chromoClass has packData/unpackData/etc.
 
-		# if chromo-crossover returns tuples (2-vec) then we may need
-		#   to adjust the value of self.crossover to be even
-		#   and adjust self.mutation to match
-		b = self.chromoClass()
-		cross_rtn = self.crossoverFcn( a, b )
-		if( type(cross_rtn) is tuple ):
-			self.cross_step = 2
-		else:
-			self.cross_step = 1
-
-		#print( 'genalg:', self.population_sz,'=',self.elitism,self.crossover,self.mutation )
 		self.is_sorted = False
+
+		# just to be sure we get different random numbers
+		# : user can always override with random.setState
+		random.seed()
+
+	# maybe this should be __repr__ or __str__?
+	def describe(self):
+		print( 'Genetic Algorithm object:' )
+		print( '   pop size: '+str(self.population_sz) )
+		print( '   elitism: %d :: %0.1f%%' % (self.elitism,float(100*self.elitism)/self.population_sz) )
+		print( '   crossover: %d :: %0.1f%%' % (self.crossover,float(100*self.crossover)/self.population_sz) )
+		print( '      selection function: %s.%s: %s'%(self.selectionFcn.__module__,self.selectionFcn.__name__,str(self.selectionFcn.__doc__)) )
+		print( '      crossover function: %s.%s: %s'%(self.crossoverFcn.__module__,self.crossoverFcn.__name__,self.crossoverFcn.__doc__) )
+		print( '      mutation function: %s.%s: %s'%(self.mutationFcn.__module__,self.mutationFcn.__name__,self.mutationFcn.__doc__) )
+		print( '   mutation: %d :: %0.1f%%' % (self.pureMutation,float(100*self.pureMutation)/self.population_sz) )
+		print( '      pure-mutation selection function: %s.%s: %s'%(self.pureMutationSelectionFcn.__module__,self.pureMutationSelectionFcn.__name__,self.pureMutationSelectionFcn.__doc__) )
+		print( '      pure-mutation function: %s.%s: %s'%(self.pureMutationFcn.__module__,self.pureMutationFcn.__name__,self.pureMutationFcn.__doc__) )
+		print( '   feasible-soln function: %s.%s: %s'%(self.feasibleSolnFcn.__module__,self.feasibleSolnFcn.__name__,self.feasibleSolnFcn.__doc__) )
+		print( '   migration: %d :: %0.1f%%' % (self.migration,float(100*self.migration)/self.population_sz) )
+		print( '   min_or_max: '+self.minOrMax )
+		print( '   optional params: '+str(self.params) )
 
 	def initPopulation(self):
 		pop = []
@@ -114,6 +126,7 @@ class GenAlg:
 			self.is_sorted = False
 			return 0
 		#else:
+		#	TOO MANY ITEMS
 		return -1
 
 	def calcFitness(self):
@@ -125,7 +138,7 @@ class GenAlg:
 		min_fitness = pop[0].fitness 
 		max_fitness = pop[0].fitness
 		for i in range(self.population_sz):
-			if( pop[i].fitness == None ):
+			if( pop[i].fitness is None ):
 				pop[i].fitness = pop[i].calcFitness()
 
 			# track some basic stats on the fitness values of the population
@@ -158,24 +171,11 @@ class GenAlg:
 		return pop[idx]
 
 	def sortPopulation(self):
-		psz = self.population_sz
-		pop = self.population
 		if( self.minOrMax == 'max' ):
-			compare = lambda a,b: a>b
+			rev = True
 		else:
-			compare = lambda a,b: a<b
-		for i in range(psz):
-			fit1 = pop[i].getFitness()
-			idx = i
-			for j in range(i+1,psz):
-				fit2 = pop[j].getFitness()
-				if( compare(fit2,fit1) ):
-					fit1 = fit2
-					idx = j
-			if( idx != i ):
-				t = pop[i]
-				pop[i] = pop[idx]
-				pop[idx] = t
+			rev = False
+		self.population.sort( key=lambda x: x.fitness, reverse=rev )
 		self.is_sorted = True
 
 	def evolve( self, iters ):
@@ -186,26 +186,33 @@ class GenAlg:
 		for iter in range(iters):
 			pop = self.population
 
+			self.feasibleSolnFcn( self, None, newgen=True )
+
 			# while we add elitism population "first", we can
 			# send any migrants out now, to minimize any network slowness
 			# NOTE: this func does not remove the migrant from the
 			#       current population, it makes a copy to send to
 			#       the remote population
 			migrants_out = []
+			migrants_idx_out = []
 			if( self.migration > 0 ):
-				# TODO: only do migration every N iterations
-				for i in range(0,self.migration):
-					# simple selection from all "parents"
-					#   parents == top X% of population with the best fitness
-					# TODO: migrant should be removed from population (if present)
-					idx1 = random.randint(0,self.parents-1)
-					migrants_out.append( pop[ idx1 ] )
-				self.migrationSendFcn( migrants_out )
+				# only do migrations every N generations
+				if( self.migrationCounter == 0 ):
+					for i in range(0,self.migration):
+						# TODO: migrant should be removed from population (if present)
+						idx1 = random.randrange(self.population_sz)
+						migrants_out.append( pop[ idx1 ] )
+						migrants_idx_out.append( idx1 )
+					self.migrationSendFcn( migrants_out )
 
 			# first group is best-N chromos (elitism)
+			# : process these with 'feasibleSolnFcn' to make sure they are checksummed/hashed/etc.
 			pop_e = []
-			for i in range(self.elitism):
-				pop_e.append( pop[i] )
+			i = 0
+			while( i < self.elitism ):
+				if( self.feasibleSolnFcn(self,pop[i]) ):
+					pop_e.append( pop[i] )
+					i = i + 1
 
 			# next group are computed from crossover and mutation
 			pop_c = []
@@ -214,7 +221,7 @@ class GenAlg:
 				idx1,idx2 = self.selectionFcn( self )
 				mother = pop[idx1]
 				father = pop[idx2]
-				children = self.crossoverFcn( mother, father )
+				children = self.crossoverFcn( mother, father, self.params )
 				for child in children:
 					child = self.mutationFcn( child )
 					# test if child is feasible sol'n
@@ -235,24 +242,44 @@ class GenAlg:
 					i = i + 1
 
 			# if present, do migration (callback to user-code)
-			# NOTE: this func does not remove the migrant from the
-			#       current population, it makes a copy to send to
-			#       the remote population
 			migrants_in = []
 			if( self.migration > 0 ):
-				migrants_in = self.migrationRecvFcn()
+				# only do migrations every N generations
+				if( self.migrationCounter == 0 ):
+					migrants_in = self.migrationRecvFcn()
+				# else:
+				# 	print( 'skipped migration' )
+				
+				# handle the update of the migration-counter
+				self.migrationCounter = self.migrationCounter + 1
+				if( self.migrationCounter == self.migrationSkip ):
+					self.migrationCounter = 0
 
 			# now look at the new-population subsets and
 			# assemble them into the next generation
-			# TODO: should we throw away equivalent chromos
-			#   in the population?  i.e. if pop[0]==pop[1],
-			#   then we lose diversity in the population
-			#   (since they're sorted, this shouldn't be too hard;
-			#   but would be chromo-specific)
+			# : due to dedup/infeasible sol'ns, this may not add up, so we have to check each time
+			len_e = len(pop_e)
+			len_c = len(pop_c)
+			len_m = len(pop_m)
+			len_mi = len(migrants_in)
+			#print( 'len', len_e, len_c, len_m, len_mi )
+			# : we always add the elite population in full
 			self.population = pop_e
-			self.population.extend( pop_c )
-			self.population.extend( pop_m )
-			# TODO: add in migrants
+			# : and we'll always take the migrant population (or else they could be lost)
+			self.population.extend( migrants_in )
+			# : for crossover population, add as many as we can (until full-pop)
+			if( (len_e+len_mi+len_c) < self.population_sz ):
+				self.population.extend( pop_c )
+			else:
+				i = self.population_sz - len_e - len_mi
+				self.population.extend( pop_c[:i] )
+			# : mutation-only population, again, take as many as we can
+			if( (len_e+len_mi+len_c+len_m) < self.population_sz ):
+				self.population.extend( pop_m )
+			else:
+				i = self.population_sz - len_e - len_mi - len_c
+				self.population.extend( pop_m[:i] )
+			#print( 'pop size', self.population_sz, len(self.population), len(pop_e), len(pop_c), len(pop_m), len(migrants_in) )
 
 			self.calcFitness()
 			self.sortPopulation()

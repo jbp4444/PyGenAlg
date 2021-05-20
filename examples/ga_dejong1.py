@@ -45,7 +45,6 @@ def main():
 		elitism      = 0.10,
 		crossover    = 0.60,
 		pureMutation = 0.30,
-		parentsPct   = 0.80,
 		chromoClass  = MyChromo,
 		#selectionFcn = GenAlgOps.tournamentSelection,
 		#crossoverFcn = GenAlgOps.crossover22,

@@ -15,6 +15,9 @@ class the_code( Process ):
         sys.stdout.flush()
 
     def run(self):
+        print( 'tid start' )
+        sys.stdout.flush()
+
         tid = self.tid
         num_pes = self.num_pes
         parMgr = self.parMgr
@@ -51,7 +54,7 @@ class the_code( Process ):
         print( 'tid '+str(tid)+' collect='+str(vals) )
 
 def main():
-    parMgr = ParallelMgr.ParallelMgr( num_pes=2 )
+    parMgr = ParallelMgr( num_pes=2 )
 
     parMgr.runWorkers( the_code )
 

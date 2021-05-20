@@ -1,9 +1,14 @@
 #
-# genetic algorithm to place circular sprinklers into a field
-# to provide the best coverage of that field
+# genetic algorithm to create a maze by scattering numbers
+# into a grid .. then see if the numbers are contiguous
 #
 # Copyright (C) 2018, John Pormann, Duke University Libraries
 #
+
+# # # # # # # # # # # # # # # # # # # # #
+# ga_maze.py does NOT work all that well 
+#     .. use ga_maze2.py instead
+# # # # # # # # # # # # # # # # # # # # #
 
 import os
 import sys
@@ -83,7 +88,6 @@ def main():
 		elitismPct   = 0.10,
 		crossoverPct = 0.30,
 		mutationPct  = 0.60,
-		parentsPct   = 0.50,
 		chromoClass  = MyChromo,
 		minOrMax     = 'max',
 		showBest     = 0

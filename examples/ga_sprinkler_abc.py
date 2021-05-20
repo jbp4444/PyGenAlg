@@ -10,7 +10,7 @@ import random
 
 from PIL import Image, ImageDraw
 
-from PyGenAlg import GenAlg, BaseChromo, GenAlgOps, IoOps
+from PyGenAlg import AbcAlg, BaseChromo
 
 # # # # # # # # # # # # # # # # # # # #
 ## # # # # # # # # # # # # # # # # # #
@@ -24,19 +24,12 @@ from PyGenAlg import GenAlg, BaseChromo, GenAlgOps, IoOps
 num_sprayers = 5
 # some of them may have smaller/larger spray-radii
 dataRanges = [
-	(0,100), (0,100), (1,20),
-	(0,100), (0,100), (1,20),
-	(0,100), (0,100), (1,20),
-	(0,100), (0,100), (1,20),
-	(0,100), (0,100), (1,20)
+	(0,100), (0,100), (1,30),
+	(0,100), (0,100), (1,30),
+	(0,100), (0,100), (1,40),
+	(0,100), (0,100), (1,40),
+	(0,100), (0,100), (1,50)
 ]
-# dataRanges = [
-# 	(0,100), (0,100), (1,30),
-# 	(0,100), (0,100), (1,30),
-# 	(0,100), (0,100), (1,40),
-# 	(0,100), (0,100), (1,40),
-# 	(0,100), (0,100), (1,50)
-# ]
 # fitness = number of squares with at least 1 unit of water
 # but negative fitness if more than 2 units;
 # i.e. waterlogged plants will die
@@ -128,7 +121,7 @@ class MyChromo(BaseChromo):
 			draw.ellipse( (5*xc-10,5*yc-10,5*xc+10,5*yc+10), outline=(255,255,255), width=1 )
 			draw.ellipse( (5*xc-5*rad,5*yc-5*rad,5*xc+5*rad,5*yc+5*rad), outline=(255,255,255), width=1 )
 
-		img.save( "field_spray.png" )
+		img.save( "field_spray_abc.png" )
 
 # # # # # # # # # # # # # # # # # # # #
 ## # # # # # # # # # # # # # # # # # #
@@ -136,55 +129,34 @@ class MyChromo(BaseChromo):
 
 def main():
 
-	ga = GenAlg( size=100,
-		elitism      = 0.10,
-		crossover    = 0.60,
-		pureMutation = 0.30,
+	abca = AbcAlg( size=50,
+		onlookerSize = 50,
 		chromoClass  = MyChromo,
-		#selectionFcn = GenAlgOps.tournamentSelection,
-		#crossoverFcn = GenAlgOps.crossover22,
-		#mutationFcn  = GenAlgOps.mutateFew,
-		#pureMutationSelectionFcn = GenAlgOps.simpleSelection,
-		#pureMutationFcn = GenAlgOps.mutateFew,
-		#feasibleSolnFcn = GenAlgOps.disallowDupes,
 		minOrMax     = 'max',
-		showBest     = 0,
+		showBest     = 0
 	)
 
-	#
-	# if a pickle-file exists, we load it
-	if( os.path.isfile('ga_sprinkler.dat') ):
-		pop = IoOps.loadPopulation( ga, 'ga_sprinkler.dat' )
-		ga.appendToPopulation( pop )
-		print( 'Read init data from file ('+str(len(pop))+' chromos)')
-	else:
-		# otherwise, init the gen-alg library from scratch
-		ga.initPopulation()
-		print( 'Created random init data' )
+	abca.initPopulation()
+	print( 'Created random init data' )
 
 	#
 	# Run it !!
 	# : we'll just do 10 epochs of 10 steps each
 	for i in range(10):
-		ga.evolve( 10 )
+		abca.evolve( 10 )
 
 		# give some running feedback on our progress
 		print( str(i) + " best chromo:" )
 		for j in range(1):
-			print( ga.population[j] )
+			print( abca.population[j] )
 
 	#
 	# all done ... output final results
 	print( "\nfinal best chromos:" )
 	for i in range(10):
-		print( ga.population[i] )
-	ga.population[0].drawImage()
+		print( abca.population[i] )
+	abca.population[0].chromo.drawImage()
 
-	#
-	# we'll always save the pickle-file, just delete it
-	# if you want to start over from scratch
-	IoOps.savePopulation( ga, 'ga_sprinkler.dat' )
-	print('Final data stored to file (rm ga_sprinkler.dat to start fresh)')
 
 if __name__ == '__main__':
 	main()
