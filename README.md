@@ -1,7 +1,9 @@
 # PyGenAlg
 --------
 
-A pair of basic genetic algorithm classes to play around with.
+A set of basic genetic algorithm classes to play around with.
+
+NEW: refactored the code to better "fit" with Numba/CUDA's approach (e.g. the population is one large vector); but note that that means the CUDA (GPU) and CPU code are NOT equivalent and should not be compared to each other (for run-times)
 
 * Chromo.py - includes a BaseChromo class that should be subclassed
   * Includes several crossover methods
